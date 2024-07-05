@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>LFA project</title>
+    <style>
+        h1 {
+            margin-bottom: -1.7%;
+        }
+        h2 {
+            padding-top: 1%;
+        }
+        pre {
+            max-height: 300px; 
+            overflow: auto;
+            display: block;
+        }
+        code {
+            border: 1.5px solid;
+            display: block;
+            background-color:rgb(195, 200, 205);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Projeto de LFA</h1>
+    <h2>Introdução</h2>
+    <p>Esse trabalho foi feito no semestre passado em LFA com a Beatriz Eich como minha dupla, inicialmente feito no google colab. Esse site é uma tentativa de reproduzir parte do formato do colab.</p>
+    <p>PS: I'm proud about that regex</p>
+    <h2><a href="https://colab.research.google.com/drive/1boayML2obhLzBYt_BC4o8rhloe-MRsM2?usp=sharing">Colab Reformulado</a></h2>
+    <p>Para que o código funcione é necessário que a com o banco de dados esteja no drive, para que o "caminho_arquivo = '/content/drive/MyDrive/LFA_leis.csv'" funcione corretamente</p>
+    <hr />
+
+    <pre>
+        <code>
+    from google.colab import drive
+    drive.mount('/content/drive')
+        </code>
+    </pre>
+    <hr />
+
+    <pre>
+        <code>
+    import re
+    from collections import Counter
+
+    # Definição das Expressões Regulares
+    regex_art_com_virgulas = r"((arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)|(incisos? +[IVXL]*))((,|;|((,|;)? *e *)) *(((§*)? *\d+ *(º|°)?)|(caput)|((incisos? *)?[IVXL]+)))+[,]?[ a-zA-Zã-û0-9]*[.]?[0-9\/]*[.,)]"
+    regex_art_sem_virgulas = r"(arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)+[ a-zA-Zã-û]*º? *[0-9]*[.]?[0-9\/]*[.,)]"
+    regex_lei = r"[lL]eis? +[nN]º? *\d+([.,\s]*\d+)*[\/\d]*"
+
+    # Função para extrair os dados do texto
+    def extrair_dados_legislacao(texto):
+        matches_com_virgulas = re.finditer(regex_art_com_virgulas, texto)
+        matches_sem_virgulas = re.finditer(regex_art_sem_virgulas, texto)
+        matches_leis = re.finditer(regex_lei, texto)
+
+        dados = []
+        for match in matches_com_virgulas:
+            dados.append(match.group())
+        for match in matches_sem_virgulas:
+            dados.append(match.group())
+        for match in matches_leis:
+            dados.append(match.group())
+
+        # Adicionando captura de artigo-lei quando aparecem lado a lado
+        matches_artigo_lei = re.finditer(r"((arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)|((incisos? +[IVXL]*)+))((,|;|((,|;)? *e *)) *(((§*)? *\d+ *(º|°)?)|(caput)|((incisos? *)?[IVXL]+)))*[ a-zA-Zã-û0-9]*[.]?[0-9\/]*[.,)]* +[lL]eis? +[nN]º? *\d+([.,\s]*\d+)*[\/\d]*", texto)
+        for match in matches_artigo_lei:
+            dados.append(match.group())
+
+        return dados
+
+    # Leitura do arquivo
+    def processar_arquivo(caminho_arquivo):
+        with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+            conteudo = arquivo.read()
+
+        return extrair_dados_legislacao(conteudo)
+
+    # Calcular estatísticas
+    def calcular_estatisticas(dados):
+        contagem_leis = Counter()
+        combinacoes_artigo_lei = Counter()
+
+        for texto in dados:
+            match_lei = re.search(regex_lei, texto)
+            match_artigo = re.search(r"(art\. *\d+)", texto)
+            if match_lei:
+                contagem_leis[match_lei.group()] += 1
+            if match_lei and match_artigo:
+                combinacoes_artigo_lei[(match_artigo.group(), match_lei.group())] += 1
+
+        return contagem_leis, combinacoes_artigo_lei
+
+    # Função para escrever resultados em um arquivo
+    def escrever_resultados_arquivo(dados, contagem_leis, combinacoes_artigo_lei):
+        with open('resultados_saida.txt', 'w', encoding='utf-8') as arquivo:
+            arquivo.write("Dados Extraídos:\n")
+            for item in dados:
+                arquivo.write(f"{item}\n")
+            arquivo.write("\nLei com maior número de ocorrências:\n")
+            if contagem_leis:
+                lei_mais_citada, ocorrencias = contagem_leis.most_common(1)[0]
+                arquivo.write(f"{lei_mais_citada}: {ocorrencias}\n")
+            else:
+                arquivo.write("Nenhuma lei encontrada.\n")
+            arquivo.write("\nCombinação de Artigo-Lei mais frequente:\n")
+            if combinacoes_artigo_lei:
+                combinacao_mais_frequente, ocorrencias = combinacoes_artigo_lei.most_common(1)[0]
+                arquivo.write(f"{combinacao_mais_frequente}: {ocorrencias}\n")
+            else:
+                arquivo.write("Nenhuma combinação encontrada.\n")
+
+    # Processamento do arquivo
+    caminho_arquivo = '/content/drive/MyDrive/LFA_leis.csv'
+    dados_extraidos = processar_arquivo(caminho_arquivo)
+    contagem_leis, combinacoes_artigo_lei = calcular_estatisticas(dados_extraidos)
+
+    # Escrever resultados no arquivo
+    escrever_resultados_arquivo(dados_extraidos, contagem_leis, combinacoes_artigo_lei)
+        </code>
+    </pre>
+    <hr />
+
+    <p>Código para inserção dos dados no banco de dados</p>
+    <hr />
+
+    <pre>
+        <code>
+    from getpass import getpass
+    from mysql.connector import connect, Error
+    import re
+    import csv
+    from collections import Counter
+    
+    # Definição das Expressões Regulares
+    regex_art_com_virgulas = r"((arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)|(incisos? +[IVXL]*))((,|;|((,|;)? *e *)) *(((§*)? *\d+ *(º|°)?)|(caput)|((incisos? *)?[IVXL]+)))+[,]?[ a-zA-Zã-û0-9]*[.]?[0-9\/]*[.,)]"
+    regex_art_sem_virgulas = r"(arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)+[ a-zA-Zã-û]*º? *[0-9]*[.]?[0-9\/]*[.,)]"
+    regex_lei = r"[lL]eis? +[nN]º? *\d+([.,\s]*\d+)*[\/\d]*"
+    
+    # Função para extrair os dados do texto
+    def extrair_dados_legislacao(texto, cursor, connection, texto_id):
+        matches_com_virgulas = re.finditer(regex_art_com_virgulas, texto)
+        matches_sem_virgulas = re.finditer(regex_art_sem_virgulas, texto)
+        matches_leis = re.finditer(regex_lei, texto)
+        dados = []
+        leis = ''
+        artigos_leis = ''
+        for match in matches_com_virgulas:
+            dados.append(match.group())
+            leis = match.group()
+        for match in matches_sem_virgulas:
+            leis = leis + match.group()+'|'
+            dados.append(match.group())
+        for match in matches_leis:
+            leis = leis + match.group()+'|'
+            dados.append(match.group())
+    
+        # Adicionando captura de artigo-lei quando aparecem lado a lado
+        matches_artigo_lei = re.finditer(r"((arts?(igos?)?[.]? +\d*[.]?\d*[º°-]?\w?)|((incisos? +[IVXL]*)+))((,|;|((,|;)? *e *)) *(((§*)? *\d+ *(º|°)?)|(caput)|((incisos? *)?[IVXL]+)))*[ a-zA-Zã-û0-9]*[.]?[0-9\/]*[.,)]* +[lL]eis? +[nN]º? *\d+([.,\s]*\d+)*[\/\d]*", texto)
+        for match in matches_artigo_lei:
+            artigos_leis = artigos_leis + match.group() + '|'
+            dados.append(match.group())
+    
+        #inserindo os dados no banco de dados
+        insert_leis_query = """
+        INSERT INTO leis_regex
+        (codigo_texto, leis, artigos_leis)
+        VALUES ( %s, %s, %s )
+        """
+        cursor.execute(insert_leis_query, (texto_id, leis, artigos_leis))
+        connection.commit()
+    
+        return dados
+    
+    # Leitura do arquivo
+    def processar_arquivo(caminho_arquivo):
+        #realiza conexão com o banco de dados
+        try:
+            with connect(
+                host="localhost",
+                user=input("Enter username: "),
+                password=getpass("Enter password: "),
+                database="regex_leis",
+                ) as connection:
+                with connection.cursor() as cursor:
+                    #criação da tabela no banco de dados
+                    create_table_leis = """
+                    CREATE TABLE IF NOT EXISTS leis_regex(
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        codigo_texto varchar(20),
+                        leis varchar(4000),
+                        artigos_leis varchar(4000)
+                    );
+                    """
+                    cursor.execute(create_table_leis)
+                    connection.commit()
+                    #leitura do csv
+                    with open(caminho_arquivo, 'r', encoding='utf-8') as arquivo:
+                        conteudo = ''
+                        reader = csv.reader(arquivo)
+                        row = next(reader)
+                        #loop para extração de dados do csv
+                        for i in range(0, 1000):
+                            conteudo.join(extrair_dados_legislacao(row[1], cursor, connection, row[0]))
+                            i = i+1
+                            row = next(reader)
+        except Error as e:
+            print(e)
+        return conteudo
+    
+    # Processamento do arquivo
+    caminho_arquivo = 'LFA_leis.csv'
+    
+    dados_extraidos = processar_arquivo(caminho_arquivo)
+        </code>
+    </pre>
+</body>
+
+</html>
