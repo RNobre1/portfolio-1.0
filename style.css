@@ -1,0 +1,11 @@
+pre {
+    max-height: 300px; 
+    overflow: auto;
+    display: block;
+}
+
+code {
+    border: 1.5px solid;
+    display: block;
+    background-color:rgb(195, 200, 205);
+}
