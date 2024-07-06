@@ -4,8 +4,60 @@ pre {
     display: block;
 }
 
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+  }
+
+.center{
+    padding-left: 1cm;
+    padding-right: 1cm;
+}
+
 code {
     border: 1.5px solid;
     display: block;
     background-color:rgb(195, 200, 205);
 }
+
+header {
+    background-color: #aa80f3;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  header h1 {
+    margin: 0;
+  }
+  
+  nav {
+    background-color: #aa80f3;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+  }
+  
+  nav li {
+    display: inline-block;
+    margin-right: 20px;
+  }
+  
+  nav a {
+    color: #fff;
+    text-decoration: none;
+  }
+
+  footer {
+    background-color: #aa80f3;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+  }
